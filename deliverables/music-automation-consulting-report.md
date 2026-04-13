@@ -342,7 +342,7 @@ If your real goal is dependable household audio, local-first media wins.
 ## Proposed Folder Layout for the Actual Build
 
 ```text
-song-automation/
+sangeet/
   app/
     controller/
     playback/

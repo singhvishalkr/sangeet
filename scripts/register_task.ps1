@@ -1,4 +1,4 @@
-# Register Song Automation as a Windows Task Scheduler task
+# Register Sangeet as a Windows Task Scheduler task
 # Runs at user logon and stays running 24/7
 
 $TaskName = "SongAutomation"

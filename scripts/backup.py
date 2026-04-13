@@ -1,4 +1,4 @@
-"""Backup and restore utility for Song Automation data."""
+"""Backup and restore utility for Sangeet data."""
 from __future__ import annotations
 
 import argparse
@@ -80,7 +80,7 @@ def export_json(data_dir: str, output_file: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Song Automation backup/restore")
+    parser = argparse.ArgumentParser(description="Sangeet backup/restore")
     sub = parser.add_subparsers(dest="command")
 
     bp = sub.add_parser("backup", help="Backup database and config")
