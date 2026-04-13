@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sangeet"
+version = "0.1.0"
+description = "Sangeet — intelligent, local-first music automation for always-on machines"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "APScheduler>=3.11,<4",
+  "fastapi>=0.115",
+  "holidays>=0.72",
+  "httpx>=0.28",
+  "pydantic>=2.8",
+  "PyYAML>=6.0.2",
+  "uvicorn>=0.34",
+  "websockets>=13.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[project.scripts]
+sangeet = "song_automation.main:main"
+
+[project.urls]
+Homepage = "https://github.com/singhvishalkr/sangeet"
+Documentation = "https://github.com/singhvishalkr/sangeet/tree/main/docs"
+Repository = "https://github.com/singhvishalkr/sangeet"
+Issues = "https://github.com/singhvishalkr/sangeet/issues"
+
+[tool.setuptools.packages.find]
+include = ["song_automation*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["song_automation"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

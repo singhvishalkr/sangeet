@@ -1,0 +1,224 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  Sangeet — Configuration                                       ║
+# ║  Copy this file to automation.yaml and edit for your setup.    ║
+# ║  Docs: https://github.com/singhvishalkr/sangeet                ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# ── YOUR LOCATION ────────────────────────────────────────────────
+# Used for weather-aware playlist selection and holiday detection.
+# Find your coordinates: https://plus.codes/map
+timezone: Asia/Calcutta
+
+location:
+  country: IN                # ISO 3166-1 alpha-2 (IN, US, GB, etc.)
+  subdivision: HR            # ISO 3166-2 subdivision (HR=Haryana, MH=Maharashtra, etc.)
+  latitude: 28.3786          # Your latitude (decimal degrees)
+  longitude: 77.0566         # Your longitude (decimal degrees)
+
+# ── FEATURE FLAGS ────────────────────────────────────────────────
+# Toggle capabilities on/off. Safe to disable anything.
+features:
+  time_automation: true      # Core schedule-based playback
+  calendar_rules: true       # Holiday/festival-aware scoring
+  weather_context: true      # Weather-aware playlist selection (needs internet)
+  smart_rotation: true       # Anti-repeat freshness scoring
+  dual_player: false         # Experimental: two mpv instances for crossfade
+  adaptive_learning: true    # Learn from skip/play patterns
+  mood_context: false        # Manual mood input via API
+  room_modes: true           # Room mode overrides (prayer, cooking, guests, etc.)
+
+# ── PLAYER ───────────────────────────────────────────────────────
+# mpv is the playback engine. Install: https://mpv.io/installation/
+player:
+  executable: mpv            # Path to mpv binary, or just "mpv" if on PATH
+  pipe_name: sangeet-mpv
+  dry_run: false             # Set true to test without actual audio
+  extra_args:
+    - --no-video
+    - --idle=yes
+    - --no-config
+    - --force-window=no
+    - --volume=35            # Initial mpv volume (overridden by volume_profile)
+
+# ── TIMING DEFAULTS ──────────────────────────────────────────────
+defaults:
+  reconcile_seconds: 30      # How often the engine checks what to play
+  min_switch_interval_minutes: 20  # Minimum gap between playlist switches
+  transition:
+    fade_out_seconds: 5
+    fade_in_seconds: 8
+    curve: linear            # linear | ease_in | ease_out | logarithmic
+    max_volume_jump: 15      # Anti-jolt: max volume change per step
+
+# ── API / DASHBOARD ──────────────────────────────────────────────
+api:
+  enabled: true
+  host: 127.0.0.1
+  port: 8765
+  auth_token:                # Optional: set a token for API authentication
+
+# ── PLAYLISTS ────────────────────────────────────────────────────
+# Each playlist points to an M3U file or a single audio file.
+# Tags are used by the resolver for smart matching.
+# Volume profile: start → target over ramp_minutes (gentle wake-up effect).
+playlists:
+  - id: morning_bhajans
+    name: Morning Bhajans
+    source:
+      type: m3u
+      value: /path/to/playlists/morning-bhajans.m3u  # CHANGE THIS
+    tags: [devotional, morning, bhajan, calm]
+    shuffle: true
+    volume_profile:
+      start: 18
+      target: 35
+      ramp_minutes: 10
+
+  - id: evening_aarti
+    name: Evening Sandhya Aarti
+    source:
+      type: m3u
+      value: /path/to/playlists/evening-aarti.m3u    # CHANGE THIS
+    tags: [devotional, evening, aarti, sandhya]
+    shuffle: true
+    volume_profile:
+      start: 22
+      target: 38
+      ramp_minutes: 5
+
+  - id: night_chill
+    name: Night Chill
+    source:
+      type: m3u
+      value: /path/to/playlists/night-chill.m3u      # CHANGE THIS
+    tags: [night, chill, soulful, cooking]
+    shuffle: true
+    volume_profile:
+      start: 20
+      target: 32
+      ramp_minutes: 5
+
+  - id: weekend_mix
+    name: Weekend Mix
+    source:
+      type: m3u
+      value: /path/to/playlists/weekend-all.m3u      # CHANGE THIS
+    tags: [weekend, party, energetic, fun]
+    shuffle: true
+    volume_profile:
+      start: 25
+      target: 45
+      ramp_minutes: 5
+
+# ── SCHEDULE ─────────────────────────────────────────────────────
+# Define when each slot is active. The resolver picks the best
+# playlist from the slot's playlist_ids based on tags, weather, etc.
+schedule:
+  - id: morning_slot
+    name: Morning Devotional
+    start: "07:30"           # CHANGE: your preferred morning time
+    end: "08:00"
+    weekdays: [mon, tue, wed, thu, fri]
+    playlist_ids: [morning_bhajans]
+    preferred_tags: [devotional, morning]
+    transition:
+      fade_out_seconds: 8
+      fade_in_seconds: 12
+      curve: ease_in
+      max_volume_jump: 8
+
+  - id: evening_slot
+    name: Evening Aarti
+    start: "19:00"           # CHANGE: your preferred evening time
+    end: "19:30"
+    weekdays: [mon, tue, wed, thu, fri, sat, sun]
+    playlist_ids: [evening_aarti]
+    preferred_tags: [devotional, evening, aarti]
+
+  - id: night_slot
+    name: Night Chill
+    start: "21:00"           # CHANGE: your preferred night time
+    end: "21:45"
+    weekdays: [mon, tue, wed, thu, fri]
+    playlist_ids: [night_chill]
+    preferred_tags: [night, chill, soulful]
+    transition:
+      fade_out_seconds: 8
+      fade_in_seconds: 10
+      curve: logarithmic
+      max_volume_jump: 6
+
+  - id: weekend_jam
+    name: Weekend Jam
+    start: "11:00"
+    end: "13:00"
+    weekdays: [sat, sun]
+    playlist_ids: [weekend_mix]
+    preferred_tags: [weekend, party, energetic]
+
+# ── WEEKDAY THEMES ───────────────────────────────────────────────
+# Boost specific tags on certain days for variety.
+weekday_themes:
+  - weekdays: [mon]
+    slot_ids: [morning_slot, evening_slot]
+    include_tags: [shiv]
+    boost: 45
+
+  - weekdays: [fri]
+    slot_ids: [morning_slot, evening_slot]
+    include_tags: [devi]
+    boost: 45
+
+# ── HOLIDAY RULES ────────────────────────────────────────────────
+# Auto-detected via the `holidays` library for your country/subdivision.
+holiday_rules:
+  - name_contains: Diwali
+    slot_ids: [evening_slot]
+    boost: 90
+    exclusive: true
+
+  - name_contains: Janmashtami
+    slot_ids: [morning_slot, evening_slot]
+    include_tags: [krishna]
+    boost: 90
+    exclusive: true
+
+# ── WEATHER RULES ────────────────────────────────────────────────
+# Fetched from Open-Meteo (free, no API key needed).
+weather_rules:
+  - slot_ids: [night_slot]
+    precipitation_above: 0.3
+    include_tags: [sufi, classics]
+    boost: 35
+
+  - slot_ids: [night_slot]
+    temperature_below: 15
+    include_tags: [soulful, classics]
+    boost: 25
+
+# ── QUIET HOURS ──────────────────────────────────────────────────
+quiet_hours:
+  enabled: true
+  start: "22:00"             # CHANGE: when to start quiet mode
+  end: "07:00"               # CHANGE: when quiet mode ends
+  max_volume: 25
+  stop_playback: false       # true = stop music entirely during quiet hours
+
+# ── ROOM MODES ───────────────────────────────────────────────────
+# Switch via API: POST /room with {"mode": "prayer"}
+room_modes:
+  default_mode: normal
+  mode_tag_overrides:
+    prayer: [devotional, bhajan, calm, aarti]
+    cooking: [chill, soulful, instrumental]
+    guests: [party, energetic, bollywood, punjabi]
+    quiet: [calm, soft, instrumental]
+    celebration: [party, energetic, fun, bollywood]
+    sleep: [calm, soft, instrumental]
+
+# ── SMART ROTATION ───────────────────────────────────────────────
+smart_rotation:
+  recent_session_window: 10  # How many recent sessions to consider
+  freshness_bonus: 10        # Score bonus for unplayed playlists
+  same_playlist_penalty: 65  # Penalty for repeating same playlist
+  recent_reuse_penalty: 30   # Penalty for recently-used playlists

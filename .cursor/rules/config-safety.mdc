@@ -1,0 +1,25 @@
+---
+description: Safety rules for configuration files
+globs: config/**
+---
+
+# Config Safety Rules
+
+## Secrets
+- Never commit real `automation.yaml` (gitignored).
+- Only `automation.example.yaml` with placeholder paths belongs in source control.
+- Auth tokens must be empty or absent in example configs.
+
+## Validation
+- All config changes must pass Pydantic validation before apply.
+- Cross-reference checks: playlist IDs in slots must exist in playlists list.
+- Invalid config reload must be rejected; last known good config continues.
+
+## Schema Evolution
+- New fields must have sensible defaults so existing configs keep working.
+- Never silently change the meaning of an existing field.
+- Document new config sections in the example YAML with inline comments.
+
+## Feature Flags
+- Every new capability must be gated behind `config.features`.
+- Flags default to `false` for new features until stable.

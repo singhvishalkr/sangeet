@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sangeet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+        <span>Sangeet</span>
+      </div>
+
+      <div class="sidebar-search">
+        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="sidebarSearch" class="search-input" placeholder="Search playlists, tags..." autocomplete="off" spellcheck="false">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div class="nav-links">
+        <button class="nav-btn active" data-tab="home" onclick="switchTab('home')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          Home
+        </button>
+        <button class="nav-btn" data-tab="queue" onclick="switchTab('queue')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+          Queue
+        </button>
+        <button class="nav-btn" data-tab="playlists" onclick="switchTab('playlists')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
+          Playlists
+        </button>
+        <button class="nav-btn" data-tab="discover" onclick="switchTab('discover')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z"/></svg>
+          Discover
+        </button>
+        <button class="nav-btn" data-tab="schedule" onclick="switchTab('schedule')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+          Schedule
+        </button>
+        <button class="nav-btn" data-tab="analytics" onclick="switchTab('analytics')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+          Analytics
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="conn-status" id="connStatus">
+          <span class="conn-dot" id="connDot"></span>
+          <span class="conn-text" id="connText">Connecting...</span>
+        </div>
+        <div class="kbd-hints">
+          <span title="Play/Pause"><kbd>Space</kbd></span>
+          <span title="Volume"><kbd>\u2191</kbd><kbd>\u2193</kbd></span>
+          <span title="Mute"><kbd>M</kbd></span>
+          <span title="Like"><kbd>L</kbd></span>
+          <span title="Now Playing"><kbd>N</kbd></span>
+          <span title="Search"><kbd>/</kbd></span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MOBILE HEADER -->
+    <header class="mob-header" id="mobHeader">
+      <button class="icon-btn" onclick="toggleSidebar()" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <span class="mob-title">Sangeet</span>
+      <span class="conn-dot" id="mobDot"></span>
+    </header>
+
+    <!-- MAIN -->
+    <main class="main" id="main">
+
+      <!-- HOME -->
+      <section class="page active" id="page-home">
+
+        <!-- Now Playing Hero -->
+        <div class="now-playing" id="npCard">
+          <div class="np-gradient"></div>
+          <div class="np-inner">
+            <div class="np-top">
+              <span class="np-live"><span class="dot" id="liveDot"></span><span id="liveLabel">Live</span></span>
+              <span class="np-badge" id="npBadge"></span>
+            </div>
+            <p class="np-eyebrow">NOW PLAYING</p>
+            <h1 class="np-name" id="npName">Waiting for playback...</h1>
+            <p class="np-track" id="npTrack"></p>
+            <p class="np-slot" id="npSlot"></p>
+            <div class="np-tags" id="npTags"></div>
+          </div>
+        </div>
+
+        <!-- Why this playlist (collapsible) -->
+        <details class="card details-card">
+          <summary class="card-title clickable">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Why this playlist?
+            <svg class="chevron" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+          </summary>
+          <ul class="reason-list" id="reasons"></ul>
+        </details>
+
+        <!-- Recently Played -->
+        <div class="card" id="recentlyPlayedCard" style="display:none">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            Recently Played
+          </h3>
+          <div class="recent-list" id="recentlyPlayedList"></div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+            Quick Actions
+          </h3>
+          <div class="action-grid" id="quickActions"></div>
+        </div>
+
+        <!-- Sleep Timer -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+            Sleep Timer
+            <span class="pill sleep-pill" id="sleepPill" style="display:none">Active</span>
+          </h3>
+          <div id="sleepTimerUI">
+            <div class="chip-row">
+              <button class="chip" onclick="setSleepTimer(15)">15 min</button>
+              <button class="chip" onclick="setSleepTimer(30)">30 min</button>
+              <button class="chip" onclick="setSleepTimer(45)">45 min</button>
+              <button class="chip" onclick="setSleepTimer(60)">1 hour</button>
+              <button class="chip" onclick="setSleepTimer(90)">1.5 hr</button>
+              <button class="chip" onclick="setSleepTimer(120)">2 hr</button>
+            </div>
+            <div class="sleep-active" id="sleepActive" style="display:none">
+              <span class="sleep-remaining" id="sleepRemaining"></span>
+              <button class="chip warn-chip" onclick="clearSleepTimer()">Cancel Timer</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Context: Room Mode + Mood combined -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 3v1.93c3.93.49 6.98 3.82 6.98 7.82 0 .7-.1 1.37-.27 2.02l1.52.86c.26-.86.4-1.78.4-2.73A9.18 9.18 0 0012 3zm-1.75 4.56L8.8 6.11C7.04 7.11 5.72 8.72 5.15 10.64l1.87.49c.42-1.41 1.35-2.59 2.58-3.33zm-.25 2.69c-.44.72-.75 1.55-.75 2.5 0 2.49 2.01 4.5 4.5 4.5.95 0 1.78-.31 2.5-.75l-6.25-6.25zM12 21c4.97 0 9-4.03 9-9 0-1.84-.55-3.55-1.5-4.97l-1.42 1.42C18.65 9.62 19 10.78 19 12c0 3.87-3.13 7-7 7-1.22 0-2.38-.35-3.38-.92L7.2 19.5A8.93 8.93 0 0012 21zM5.15 13.36l-1.87.49c.57 1.92 1.89 3.53 3.65 4.53l.93-1.73c-1.23-.74-2.16-1.92-2.58-3.33z"/></svg>
+            Context
+            <span class="pill" id="modeLabel">Normal</span>
+          </h3>
+
+          <label class="section-label">Room Mode</label>
+          <div class="chip-row" id="roomChips">
+            <button class="chip active" data-mode="normal" onclick="setRoom('normal')">Normal</button>
+            <button class="chip" data-mode="prayer" onclick="setRoom('prayer')">Prayer</button>
+            <button class="chip" data-mode="cooking" onclick="setRoom('cooking')">Cooking</button>
+            <button class="chip" data-mode="guests" onclick="setRoom('guests')">Guests</button>
+            <button class="chip" data-mode="quiet" onclick="setRoom('quiet')">Quiet</button>
+            <button class="chip" data-mode="celebration" onclick="setRoom('celebration')">Celebration</button>
+            <button class="chip" data-mode="sleep" onclick="setRoom('sleep')">Sleep</button>
+          </div>
+
+          <label class="section-label">Mood</label>
+          <div class="mood-row">
+            <div class="mood-col">
+              <label class="mood-lbl">Energy</label>
+              <input type="range" min="1" max="5" value="3" id="energy" class="range" oninput="updateMoodLabel()">
+              <span class="mood-val" id="energyLbl">Balanced</span>
+            </div>
+            <div class="mood-col">
+              <label class="mood-lbl">Mood</label>
+              <input type="range" min="1" max="5" value="3" id="valence" class="range" oninput="updateMoodLabel()">
+              <span class="mood-val" id="valenceLbl">Neutral</span>
+            </div>
+          </div>
+          <div class="chip-row" id="activityChips">
+            <button class="chip" data-activity="prayer" onclick="pickActivity(this)">Prayer</button>
+            <button class="chip" data-activity="cooking" onclick="pickActivity(this)">Cooking</button>
+            <button class="chip" data-activity="work" onclick="pickActivity(this)">Work</button>
+            <button class="chip" data-activity="rest" onclick="pickActivity(this)">Rest</button>
+            <button class="chip" data-activity="celebration" onclick="pickActivity(this)">Party</button>
+            <button class="chip" data-activity="exercise" onclick="pickActivity(this)">Exercise</button>
+            <button class="chip" data-activity="guests" onclick="pickActivity(this)">Guests</button>
+          </div>
+          <button class="primary-btn" onclick="submitMood()">Apply Mood</button>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            Recent Activity
+          </h3>
+          <div class="timeline" id="timeline"><div class="empty">Loading activity...</div></div>
+        </div>
+      </section>
+
+      <!-- QUEUE -->
+      <section class="page" id="page-queue">
+        <h2 class="page-title">Up Next</h2>
+        <p class="page-sub" id="queueSub">Tracks in the current playlist</p>
+        <div id="queueList" class="queue"><div class="empty">Loading...</div></div>
+      </section>
+
+      <!-- PLAYLISTS -->
+      <section class="page" id="page-playlists">
+        <h2 class="page-title">All Playlists</h2>
+        <p class="page-sub">Tap any playlist to play it now</p>
+        <div class="filter-row" id="playlistFilters"></div>
+        <div id="playlistGrid" class="pl-grid"><div class="empty">Loading...</div></div>
+      </section>
+
+      <!-- DISCOVER -->
+      <section class="page" id="page-discover">
+        <h2 class="page-title">Discover</h2>
+        <p class="page-sub">Trending songs across categories — tap to add to your playlists</p>
+        <div id="discoverContent"><div class="empty"><span class="spinner"></span> Scanning for trending songs...</div></div>
+      </section>
+
+      <!-- SCHEDULE -->
+      <section class="page" id="page-schedule">
+        <h2 class="page-title">Today's Schedule</h2>
+        <p class="page-sub" id="schedDay"></p>
+        <div id="schedList" class="sched-list"><div class="empty">Loading...</div></div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="page" id="page-analytics">
+        <h2 class="page-title">Insights</h2>
+        <p class="page-sub">Your listening patterns and system health</p>
+        <div id="statsGrid" class="stats-grid"></div>
+        <div class="card" id="chartCard" style="display:none">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            Sessions per Day
+          </h3>
+          <div class="bar-chart" id="sessionsChart"></div>
+        </div>
+        <div class="card" id="topPlaylistsCard" style="display:none">
+          <h3 class="card-title">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3z"/></svg>
+            Most Played
+          </h3>
+          <div class="h-bar-chart" id="topPlaylists"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TRANSPORT BAR -->
+    <footer class="transport" id="transport">
+      <div class="transport-progress">
+        <div class="progress-bar" id="progressBar"></div>
+        <input type="range" class="progress-input" id="progressInput" min="0" max="1000" value="0" aria-label="Seek">
+      </div>
+      <div class="transport-inner">
+        <div class="t-left" onclick="toggleNowPlayingPanel()" style="cursor:pointer" title="Expand Now Playing">
+          <div class="t-wave" id="tWave"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="t-info">
+            <div class="t-name marquee-wrap"><span class="marquee-text" id="tName">--</span></div>
+            <div class="t-meta">
+              <span class="t-slot" id="tSlot">--</span>
+              <span class="t-time" id="tTime"></span>
+            </div>
+          </div>
+        </div>
+        <div class="t-center">
+          <button class="t-btn t-shuffle" id="tShuffleBtn" onclick="toggleShuffle()" aria-label="Shuffle" title="Shuffle (S)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+          </button>
+          <button class="t-btn" onclick="previousTrack()" aria-label="Previous" title="Previous (Shift+Left)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z"/></svg>
+          </button>
+          <button class="t-play" id="tPlayBtn" onclick="togglePlayPause()" aria-label="Play or Pause" title="Play/Pause (Space)">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" id="tPlayIcon"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="t-btn" onclick="skipTrack()" aria-label="Next" title="Next (Shift+Right)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button class="t-btn t-repeat" id="tRepeatBtn" onclick="toggleRepeat()" aria-label="Repeat" title="Repeat (R)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+          </button>
+        </div>
+        <div class="t-right">
+          <button class="t-btn t-like" id="tLikeBtn" onclick="likeCurrentTrack()" aria-label="Like" title="Like (L)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" id="tLikeIcon"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>
+          </button>
+          <button class="t-btn t-settings" onclick="toggleSettings()" aria-label="Settings" title="Playback Settings (P)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+          </button>
+          <button class="t-btn" id="tMuteBtn" onclick="toggleMute()" aria-label="Mute" title="Mute (M)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" id="tVolIcon"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          </button>
+          <input type="range" min="0" max="100" value="50" id="tVol" class="range range-sm" oninput="onVolumeChange(this.value)" aria-label="Volume" title="Volume (Up/Down arrows)">
+          <span class="vol-num" id="tVolNum">50</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- NOW PLAYING FULLSCREEN PANEL -->
+  <div class="np-panel" id="npPanel">
+    <div class="np-panel-bg" id="npPanelBg"></div>
+    <div class="np-panel-content">
+      <div class="np-panel-header">
+        <button class="icon-btn np-panel-close" onclick="toggleNowPlayingPanel()" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+        </button>
+        <span class="np-panel-label">Now Playing</span>
+        <div style="width:24px"></div>
+      </div>
+      <div class="np-panel-art" id="npPanelArt">
+        <svg viewBox="0 0 24 24" width="80" height="80" fill="currentColor" opacity="0.3"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      </div>
+      <h2 class="np-panel-track" id="npPanelTrack">--</h2>
+      <p class="np-panel-playlist" id="npPanelPlaylist">--</p>
+      <p class="np-panel-path" id="npPanelPath"></p>
+      <div class="np-panel-progress">
+        <span class="np-panel-time" id="npPanelPos">--:--</span>
+        <div class="np-panel-bar">
+          <div class="np-panel-bar-fill" id="npPanelBarFill"></div>
+        </div>
+        <span class="np-panel-time" id="npPanelDur">--:--</span>
+      </div>
+      <div class="np-panel-controls">
+        <button class="t-btn t-shuffle np-ctrl" id="npShuffleBtn" onclick="toggleShuffle()">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+        </button>
+        <button class="t-btn np-ctrl" onclick="previousTrack()">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z"/></svg>
+        </button>
+        <button class="t-play np-play" onclick="togglePlayPause()">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor" id="npPlayIcon"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="t-btn np-ctrl" onclick="skipTrack()">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+        <button class="t-btn t-repeat np-ctrl" id="npRepeatBtn" onclick="toggleRepeat()">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+        </button>
+      </div>
+      <div class="np-panel-actions">
+        <button class="np-action-btn" onclick="likeCurrentTrack()" id="npLikeBtn" title="Like">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/></svg>
+          <span>Like</span>
+        </button>
+        <button class="np-action-btn" onclick="dislikeCurrentTrack()" id="npDislikeBtn" title="Dislike">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+          <span>Dislike</span>
+        </button>
+      </div>
+      <div class="np-panel-tags" id="npPanelTags"></div>
+      <div class="np-panel-lyrics" id="npPanelLyrics">
+        <div class="lyrics-toggle" id="lyricsToggleBtn" onclick="toggleLyrics()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          <span>Show Lyrics</span>
+        </div>
+        <div class="lyrics-content" id="lyricsContent" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYLIST DETAIL MODAL -->
+  <div class="pl-detail-modal" id="plDetailModal">
+    <div class="pl-detail-inner">
+      <div class="pl-detail-header">
+        <button class="icon-btn" onclick="closePlDetail()" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+        <h2 class="pl-detail-name" id="plDetailName">--</h2>
+      </div>
+      <div class="pl-detail-meta" id="plDetailMeta"></div>
+      <div class="pl-detail-tags" id="plDetailTags"></div>
+      <div class="pl-detail-health" id="plDetailHealth"></div>
+      <button class="primary-btn" id="plDetailPlayBtn" onclick="plDetailPlay()">Play All</button>
+      <div class="pl-detail-tracks" id="plDetailTracks"></div>
+    </div>
+  </div>
+
+  <!-- PLAYBACK SETTINGS DRAWER -->
+  <div class="settings-drawer" id="settingsDrawer">
+    <div class="settings-inner">
+      <div class="settings-header">
+        <h3>Playback Settings</h3>
+        <button class="icon-btn" onclick="toggleSettings()" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="settings-section">
+        <label class="section-label">Playback Speed</label>
+        <div class="speed-row">
+          <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+          <button class="speed-btn" onclick="setSpeed(0.75)">0.75x</button>
+          <button class="speed-btn active" onclick="setSpeed(1.0)">1x</button>
+          <button class="speed-btn" onclick="setSpeed(1.25)">1.25x</button>
+          <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+          <button class="speed-btn" onclick="setSpeed(2.0)">2x</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <label class="section-label">Equalizer Preset</label>
+        <div class="eq-grid">
+          <button class="eq-btn active" data-eq="flat" onclick="setEq('flat')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+            <span>Flat</span>
+          </button>
+          <button class="eq-btn" data-eq="bass_boost" onclick="setEq('bass_boost')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            <span>Bass Boost</span>
+          </button>
+          <button class="eq-btn" data-eq="treble_boost" onclick="setEq('treble_boost')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            <span>Treble</span>
+          </button>
+          <button class="eq-btn" data-eq="vocal" onclick="setEq('vocal')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.41 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+            <span>Vocal</span>
+          </button>
+          <button class="eq-btn" data-eq="night_mode" onclick="setEq('night_mode')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.43 2.3c-2.38-.59-4.68-.27-6.63.64-.35.16-.41.64-.1.86C8.3 5.6 10 8.6 10 12c0 3.4-1.7 6.4-4.3 8.2-.32.22-.26.7.09.86 1.28.6 2.71.94 4.21.94 6.05 0 10.85-5.38 9.87-11.6-.61-3.92-3.59-7.16-7.44-8.1z"/></svg>
+            <span>Night</span>
+          </button>
+          <button class="eq-btn" data-eq="live" onclick="setEq('live')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 18h2V6H7v12zm4 4h2V2h-2v20zm-8-8h2v-4H3v4zm12 4h2V6h-2v12zm4-8v4h2v-4h-2z"/></svg>
+            <span>Live</span>
+          </button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <label class="section-label">Crossfade</label>
+        <div class="crossfade-row">
+          <input type="range" min="0" max="12" value="0" id="crossfadeSlider" class="range" oninput="onCrossfadeChange(this.value)">
+          <span class="crossfade-val" id="crossfadeVal">Off</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEYBOARD SHORTCUTS OVERLAY -->
+  <div class="kbd-overlay" id="kbdOverlay">
+    <div class="kbd-overlay-inner">
+      <div class="kbd-overlay-header">
+        <h3>Keyboard Shortcuts</h3>
+        <button class="icon-btn" onclick="toggleKbdOverlay()" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="kbd-grid" id="kbdGrid"></div>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toasts"></div>
+  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+  <div class="sr-only" id="srLive" aria-live="polite" aria-atomic="true"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

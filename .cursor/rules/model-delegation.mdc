@@ -1,0 +1,27 @@
+---
+description: Model delegation and token efficiency rules for all agent interactions
+alwaysApply: true
+---
+
+# Model Delegation & Token Efficiency
+
+## Mandatory Delegation Rules
+
+- **Always** use subagents (Task tool) for low-complexity work: file reads, grep searches, codebase exploration, simple edits, linter checks, documentation updates.
+- Use `model: "fast"` for subagents handling: simple search, read-only exploration, straightforward edits, running shell commands, documentation generation.
+- Reserve the main (high-tier) model for: architectural decisions, complex multi-file refactors, debugging tricky issues, research and analysis, code review.
+- **Never** use the main model to read large files or do simple grep searches — delegate those to `subagent_type: "explore"` with `model: "fast"`.
+
+## Token Conservation
+
+- Batch independent tool calls in a single message (parallel execution).
+- Don't re-read files you've already read in the same conversation unless they've changed.
+- Don't explain what you're about to do in long paragraphs — just do it.
+- When editing, use precise `StrReplace` with minimal context, not full file rewrites.
+- For large changes spanning 3+ files, launch parallel subagents for independent files.
+
+## Quality Gate
+
+- After implementing, always run linter checks on edited files.
+- Cross-verify UI changes by testing API endpoints via shell commands.
+- Don't wait for the user to report obvious issues — proactively check edge cases.
