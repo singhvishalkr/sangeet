@@ -11,6 +11,7 @@ import logging
 import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 CACHE_FILE = Path("data/trending_cache.json")
 SCAN_INTERVAL_HOURS = 6
+_MAX_WORKERS = 4
 
 SEARCH_QUERIES: dict[str, dict[str, Any]] = {
     "bollywood_hits": {
@@ -27,12 +29,9 @@ SEARCH_QUERIES: dict[str, dict[str, Any]] = {
             "latest bollywood songs 2026",
             "trending hindi songs this week",
             "new bollywood party songs",
-            "viral bollywood mashup 2026",
-            "top hindi romantic songs new releases",
-            "bollywood dance hits playlist 2026",
         ],
         "tags": ["bollywood", "hindi", "party"],
-        "max_results": 50,
+        "max_results": 20,
     },
     "punjabi_trending": {
         "name": "Punjabi Trending",
@@ -40,12 +39,9 @@ SEARCH_QUERIES: dict[str, dict[str, Any]] = {
             "trending punjabi songs 2026",
             "new punjabi songs this week",
             "latest punjabi party songs",
-            "new punjabi sad songs 2026",
-            "viral punjabi reels songs",
-            "punjabi folk trending",
         ],
         "tags": ["punjabi", "party", "energetic"],
-        "max_results": 50,
+        "max_results": 20,
     },
     "devotional_new": {
         "name": "New Devotional",
@@ -53,12 +49,9 @@ SEARCH_QUERIES: dict[str, dict[str, Any]] = {
             "new bhajan songs 2026",
             "latest devotional songs hindi",
             "trending aarti songs",
-            "latest krishna bhajan 2026",
-            "hindi morning devotional songs",
-            "new shiv bhajan trending",
         ],
         "tags": ["devotional", "bhajan"],
-        "max_results": 50,
+        "max_results": 20,
     },
     "chill_vibes": {
         "name": "Chill Vibes",
@@ -66,41 +59,32 @@ SEARCH_QUERIES: dict[str, dict[str, Any]] = {
             "trending lofi hindi songs",
             "new chill bollywood songs",
             "soulful hindi songs 2026",
-            "acoustic hindi cover songs 2026",
-            "relaxing bollywood instrumental",
-            "indie folk hindi chill",
         ],
         "tags": ["chill", "soulful", "lofi"],
-        "max_results": 50,
+        "max_results": 20,
     },
     "haryanvi_hits": {
         "name": "Haryanvi Hits",
         "queries": [
             "trending haryanvi songs 2026",
             "new haryanvi dj songs",
-            "haryanvi ragni popular 2026",
-            "new haryanvi love songs",
-            "haryanvi sapna chaudhary songs new",
         ],
         "tags": ["haryanvi", "party", "desi"],
-        "max_results": 50,
+        "max_results": 20,
     },
     "indie_picks": {
         "name": "Indie Picks",
         "queries": [
             "indian indie music 2026",
             "trending indie hindi songs",
-            "indie rock hindi bands 2026",
-            "underground hindi rap independent",
-            "alternative hindi music playlist",
         ],
         "tags": ["indie", "lofi"],
-        "max_results": 50,
+        "max_results": 20,
     },
 }
 
 
-def _search_youtube(query: str, max_results: int = 15, timeout: int = 30) -> list[dict]:
+def _search_youtube(query: str, max_results: int = 10, timeout: int = 20) -> list[dict]:
     """Use yt-dlp to search YouTube and return metadata (no download)."""
     try:
         result = subprocess.run(
@@ -111,7 +95,7 @@ def _search_youtube(query: str, max_results: int = 15, timeout: int = 30) -> lis
                 "--flat-playlist",
                 "--no-download",
                 "--quiet",
-                "--socket-timeout", "10",
+                "--socket-timeout", "8",
             ],
             capture_output=True, text=True, timeout=timeout,
         )
@@ -151,27 +135,43 @@ def _search_youtube(query: str, max_results: int = 15, timeout: int = 30) -> lis
         return []
 
 
+def _scan_category(cat_id: str, cat_config: dict[str, Any]) -> tuple[str, dict]:
+    """Scan a single category. Designed to run in a thread pool."""
+    all_songs: list[dict] = []
+    seen_urls: set[str] = set()
+    for query in cat_config["queries"]:
+        results = _search_youtube(query, max_results=cat_config["max_results"])
+        for song in results:
+            if song["url"] not in seen_urls:
+                seen_urls.add(song["url"])
+                all_songs.append(song)
+    all_songs.sort(key=lambda s: s.get("view_count", 0), reverse=True)
+    cat_data = {
+        "name": cat_config["name"],
+        "tags": cat_config["tags"],
+        "songs": all_songs[:cat_config["max_results"]],
+        "last_updated": datetime.now().isoformat(),
+    }
+    logger.info("  %s: found %d songs", cat_id, len(cat_data["songs"]))
+    return cat_id, cat_data
+
+
 def scan_trending() -> dict:
-    """Run a full trending scan across all categories."""
-    logger.info("Starting trending song scan...")
+    """Run a full trending scan across all categories using parallel workers."""
+    logger.info("Starting trending song scan (%d categories, %d workers)...",
+                len(SEARCH_QUERIES), _MAX_WORKERS)
     categories = {}
-    for cat_id, cat_config in SEARCH_QUERIES.items():
-        all_songs: list[dict] = []
-        seen_urls: set[str] = set()
-        for query in cat_config["queries"]:
-            results = _search_youtube(query, max_results=cat_config["max_results"])
-            for song in results:
-                if song["url"] not in seen_urls:
-                    seen_urls.add(song["url"])
-                    all_songs.append(song)
-        all_songs.sort(key=lambda s: s.get("view_count", 0), reverse=True)
-        categories[cat_id] = {
-            "name": cat_config["name"],
-            "tags": cat_config["tags"],
-            "songs": all_songs[:cat_config["max_results"]],
-            "last_updated": datetime.now().isoformat(),
+    with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
+        futures = {
+            pool.submit(_scan_category, cat_id, cat_config): cat_id
+            for cat_id, cat_config in SEARCH_QUERIES.items()
         }
-        logger.info("  %s: found %d songs", cat_id, len(all_songs[:cat_config["max_results"]]))
+        for future in as_completed(futures):
+            try:
+                cat_id, cat_data = future.result()
+                categories[cat_id] = cat_data
+            except Exception:
+                logger.exception("Category scan failed: %s", futures[future])
 
     result = {
         "categories": categories,
@@ -203,7 +203,7 @@ def load_cached() -> dict | None:
 def search_songs(query: str, max_results: int = 10) -> list[dict]:
     """Live search for songs by user query. Uses smaller batch for speed."""
     logger.info("Live search: %s (max=%d)", query, max_results)
-    return _search_youtube(query, max_results=min(max_results, 15), timeout=15)
+    return _search_youtube(query, max_results=min(max_results, 10), timeout=12)
 
 
 class DiscoveryScheduler:

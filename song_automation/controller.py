@@ -529,11 +529,13 @@ class MusicController:
         self._ramp_thread = None
 
     def _get_trending_suggestions(self) -> dict:
-        """Return cached trending song suggestions per category."""
+        """Return cached trending data instantly; trigger background scan if stale."""
         cached = load_cached()
         if cached:
             return cached
-        return scan_trending()
+        import threading
+        threading.Thread(target=scan_trending, daemon=True).start()
+        return {"categories": {}, "last_scan": None, "scanning": True}
 
     def _add_trending_song(self, playlist_id: str, url: str, background: bool = False) -> dict:
         """Download a song via yt-dlp and add to an m3u playlist.
