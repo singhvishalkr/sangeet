@@ -1,6 +1,6 @@
 @echo off
-REM Song Automation - Auto-start script
-REM This runs the song automation service using the venv Python
+REM Sangeet — Auto-start script
+REM Starts the music automation service using the venv Python
 
 cd /d "C:\Users\vishal\Documents\Song Automation"
 
