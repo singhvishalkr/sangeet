@@ -207,7 +207,11 @@ class MusicController:
         decision = preview or self._last_decision
         playlist_name = None
         playlist_tags: list[str] = []
-        if decision and decision.playlist:
+        snap = self._playback.snapshot
+        if snap.playlist_id == "__discover__":
+            playlist_name = "Discover"
+            playlist_tags = ["discover", "streaming"]
+        elif decision and decision.playlist:
             playlist_name = decision.playlist.name
             playlist_tags = list(decision.playlist.tags)
 
@@ -223,6 +227,7 @@ class MusicController:
         return {
             "controller_running": self._running,
             "server_time": now_local.isoformat(),
+            "dry_run": self.config.player.dry_run,
             "current": {
                 "playlist_id": snap.playlist_id,
                 "playlist_name": playlist_name,

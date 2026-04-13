@@ -162,6 +162,11 @@ function render(d) {
   const transport = $('transport');
   transport.classList.toggle('glow', playing && !paused);
 
+  const cloudBadge = $('cloudModeBadge');
+  if (cloudBadge) {
+    cloudBadge.style.display = d.dry_run ? '' : 'none';
+  }
+
   const mode = d.room_mode || 'normal';
   $('modeLabel').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
   document.querySelectorAll('#roomChips .chip').forEach(ch =>
@@ -1212,7 +1217,7 @@ function renderDiscoverSongs(songs) {
     const safeUrl = encodeURIComponent(song.url || '');
     const safeTitle = (song.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
     return `<div class="discover-song">
-      <div class="discover-thumb" onclick="discoverPlayNow('${safeUrl}', this)" title="Play now">${song.thumbnail ? `<img src="${song.thumbnail}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'}
+      <div class="discover-thumb" onclick="discoverPlayNow('${safeUrl}', '${safeTitle}', this)" title="Play now">${song.thumbnail ? `<img src="${song.thumbnail}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'}
         <div class="discover-play-overlay"><svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
       </div>
       <div class="discover-info">
@@ -1221,7 +1226,7 @@ function renderDiscoverSongs(songs) {
         ${views ? `<div class="discover-views">${views} views</div>` : ''}
       </div>
       <div class="discover-actions">
-        <button class="discover-action-btn discover-queue-btn" onclick="discoverAddToQueue('${safeUrl}', this)" title="Add to queue">
+        <button class="discover-action-btn discover-queue-btn" onclick="discoverAddToQueue('${safeUrl}', '${safeTitle}', this)" title="Add to queue">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
         </button>
         <button class="discover-action-btn discover-add-btn" onclick="showPlaylistPicker(this, '${safeUrl}')" title="Add to playlist">+ Add</button>
@@ -1230,25 +1235,27 @@ function renderDiscoverSongs(songs) {
   }).join('');
 }
 
-async function discoverPlayNow(encodedUrl, el) {
+async function discoverPlayNow(encodedUrl, encodedTitle, el) {
   const url = decodeURIComponent(encodedUrl);
+  const title = (encodedTitle || '').replace(/&quot;/g, '"').replace(/\\'/g, "'");
   const overlay = el.querySelector('.discover-play-overlay');
   if (overlay) overlay.innerHTML = '<span class="spinner" style="width:20px;height:20px"></span>';
   toast('Streaming...');
-  const r = await apiPost(`/discover/play?url=${encodeURIComponent(url)}`);
+  const r = await apiPost(`/discover/play?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`);
   if (overlay) overlay.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
   if (r?.ok) {
-    toast('Now playing');
+    toast('Now playing: ' + (r.title || title || 'Unknown'));
   } else {
     toast(r?.error || 'Failed to play', 'error');
   }
 }
 
-async function discoverAddToQueue(encodedUrl, btn) {
+async function discoverAddToQueue(encodedUrl, encodedTitle, btn) {
   const url = decodeURIComponent(encodedUrl);
+  const title = (encodedTitle || '').replace(/&quot;/g, '"').replace(/\\'/g, "'");
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="width:14px;height:14px"></span>';
-  const r = await apiPost(`/discover/queue?url=${encodeURIComponent(url)}`);
+  const r = await apiPost(`/discover/queue?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`);
   if (r?.ok) {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="var(--green)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
     toast('Added to queue');

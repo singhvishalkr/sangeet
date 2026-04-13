@@ -557,25 +557,34 @@ def create_app(controller: MusicController) -> FastAPI:
         return controller._add_trending_song(playlist_id, url, background=bg)
 
     @app.post("/discover/play")
-    def discover_play_now(url: str, _: None = Depends(auth_dependency)) -> dict:
+    def discover_play_now(url: str, title: str = "", _: None = Depends(auth_dependency)) -> dict:
         """Stream a YouTube URL directly via mpv (no download needed)."""
         try:
             controller._playback.ensure_started()
             controller._playback._send_command(["loadfile", url, "replace"])
             controller._playback._send_command(["set_property", "pause", False])
-            controller._playback._snapshot.is_paused = False
-            controller._storage.log_event("discover_play", payload={"url": url})
-            return {"ok": True}
+            snap = controller._playback.snapshot
+            snap.is_paused = False
+            snap.playlist_id = "__discover__"
+            snap.track.title = title or url.split("=")[-1]
+            snap.track.position = 0
+            snap.track.duration = 0
+            snap.track.playlist_pos = 0
+            snap.track.playlist_count = 1
+            controller._storage.log_event("discover_play", payload={"url": url, "title": title})
+            return {"ok": True, "title": snap.track.title}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
     @app.post("/discover/queue")
-    def discover_add_to_queue(url: str, _: None = Depends(auth_dependency)) -> dict:
+    def discover_add_to_queue(url: str, title: str = "", _: None = Depends(auth_dependency)) -> dict:
         """Add a YouTube URL to the current mpv queue."""
         try:
             controller._playback.ensure_started()
             controller._playback._send_command(["loadfile", url, "append"])
-            controller._storage.log_event("discover_queue", payload={"url": url})
+            snap = controller._playback.snapshot
+            snap.track.playlist_count = (snap.track.playlist_count or 0) + 1
+            controller._storage.log_event("discover_queue", payload={"url": url, "title": title})
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
