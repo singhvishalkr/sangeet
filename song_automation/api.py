@@ -572,7 +572,7 @@ def create_app(controller: MusicController) -> FastAPI:
             snap.track.playlist_pos = 0
             snap.track.playlist_count = 1
             controller._storage.log_event("discover_play", payload={"url": url, "title": title})
-            return {"ok": True, "title": snap.track.title}
+            return {"ok": True, "title": snap.track.title, "url": url}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 

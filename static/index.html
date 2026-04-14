@@ -464,6 +464,10 @@
   <div class="toast-box" id="toasts"></div>
   <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
   <div class="sr-only" id="srLive" aria-live="polite" aria-atomic="true"></div>
+  <div id="ytPlayerWrap" style="position:fixed;bottom:-1px;left:-1px;width:1px;height:1px;overflow:hidden;pointer-events:none;opacity:0;z-index:-1;">
+    <div id="ytPlayer"></div>
+  </div>
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -22,11 +22,103 @@ let npPanelOpen = false;
 let plDetailId = null;
 let sleepInterval = null;
 let _prevTrackTitle = null;
+let _currentDiscoverUrl = null;
 
 let interpPos = 0;
 let interpDur = 0;
 let interpLastSync = 0;
 let interpRaf = null;
+
+/* ─── YOUTUBE IFRAME PLAYER (browser-side audio for cloud) ─── */
+let ytPlayer = null;
+let ytReady = false;
+let ytQueue = [];
+let ytCurrentTitle = '';
+let ytDryRun = false;
+
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('ytPlayer', {
+    height: '1', width: '1',
+    playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0 },
+    events: {
+      onReady: () => { ytReady = true; },
+      onStateChange: onYtStateChange,
+    },
+  });
+}
+
+function onYtStateChange(e) {
+  if (e.data === YT.PlayerState.ENDED) {
+    if (ytQueue.length > 0) {
+      const next = ytQueue.shift();
+      ytPlayById(next.id, next.title);
+    }
+  }
+}
+
+function extractYtVideoId(url) {
+  const m = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/);
+  return m ? m[1] : null;
+}
+
+function ytPlayById(videoId, title) {
+  if (!ytReady || !ytPlayer) return false;
+  ytCurrentTitle = title || '';
+  ytPlayer.loadVideoById(videoId);
+  return true;
+}
+
+function ytPlayUrl(url, title) {
+  const vid = extractYtVideoId(url);
+  if (!vid) return false;
+  return ytPlayById(vid, title);
+}
+
+function ytQueueUrl(url, title) {
+  const vid = extractYtVideoId(url);
+  if (!vid) return false;
+  if (!ytReady || !ytPlayer) return false;
+  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ||
+      ytPlayer.getPlayerState() === YT.PlayerState.BUFFERING) {
+    ytQueue.push({ id: vid, title: title || '' });
+    return true;
+  }
+  return ytPlayById(vid, title);
+}
+
+function ytTogglePause() {
+  if (!ytReady || !ytPlayer) return;
+  const st = ytPlayer.getPlayerState();
+  if (st === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+  else if (st === YT.PlayerState.PAUSED) ytPlayer.playVideo();
+}
+
+function ytSetVolume(v) {
+  if (ytReady && ytPlayer) ytPlayer.setVolume(Math.max(0, Math.min(100, v)));
+}
+
+function ytSeekTo(sec) {
+  if (ytReady && ytPlayer) ytPlayer.seekTo(sec, true);
+}
+
+function ytGetPosition() {
+  return (ytReady && ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0;
+}
+
+function ytGetDuration() {
+  return (ytReady && ytPlayer && ytPlayer.getDuration) ? ytPlayer.getDuration() : 0;
+}
+
+function isYtPlaying() {
+  if (!ytReady || !ytPlayer) return false;
+  const st = ytPlayer.getPlayerState();
+  return st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING;
+}
+
+function isYtPaused() {
+  if (!ytReady || !ytPlayer) return false;
+  return ytPlayer.getPlayerState() === YT.PlayerState.PAUSED;
+}
 
 const $ = id => document.getElementById(id);
 const hdr = () => AUTH ? { 'X-Auth-Token': AUTH } : {};
@@ -139,8 +231,13 @@ function render(d) {
 
   $('tSlot').textContent = dec.slot_name || pretty(dec.slot_id || '');
 
-  const pos = c.track_position || 0;
-  const dur = c.track_duration || 0;
+  let pos = c.track_position || 0;
+  let dur = c.track_duration || 0;
+
+  if (isYtPlaying() || isYtPaused()) {
+    pos = ytGetPosition();
+    dur = ytGetDuration();
+  }
 
   interpPos = pos;
   interpDur = dur;
@@ -165,6 +262,12 @@ function render(d) {
   const cloudBadge = $('cloudModeBadge');
   if (cloudBadge) {
     cloudBadge.style.display = d.dry_run ? '' : 'none';
+  }
+  ytDryRun = !!d.dry_run;
+
+  if (isYtPlaying() || isYtPaused()) {
+    playing = true;
+    paused = isYtPaused();
   }
 
   const mode = d.room_mode || 'normal';
@@ -245,6 +348,16 @@ function renderNpPanel(c, dec) {
   $('npPanelPlaylist').textContent = playlistName || '--';
   $('npPanelPath').textContent = trackTitle ? `Playing from: ${playlistName}` : '';
   $('npPanelTags').innerHTML = (c.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+
+  const artEl = $('npPanelArt');
+  if (artEl && _currentDiscoverUrl) {
+    const vid = extractYtVideoId(_currentDiscoverUrl);
+    if (vid) {
+      artEl.innerHTML = `<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" alt="Album art" style="width:100%;max-width:320px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">`;
+    }
+  } else if (artEl && !c.playlist_id) {
+    artEl.innerHTML = '<svg viewBox="0 0 24 24" width="80" height="80" fill="currentColor" opacity="0.3"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+  }
 
   const npPlayIcon = $('npPlayIcon');
   if (npPlayIcon) {
@@ -677,6 +790,7 @@ function togglePlayPause() {
     smartPlay();
     return;
   }
+  ytTogglePause();
   if (paused) {
     apiPost('/resume').then(d => {
       if (d) { status = d; render(d); }
@@ -704,6 +818,7 @@ function onVolumeChange(v) {
   v = parseInt(v);
   vol = v;
   syncVolumeUI(v);
+  ytSetVolume(v);
   clearTimeout(volTimer);
   volTimer = setTimeout(async () => {
     await apiPost('/volume', { volume: v });
@@ -1031,9 +1146,11 @@ if (progressInput) {
   });
   const doSeek = () => {
     seekDragging = false;
-    const dur = status?.current?.track_duration || 0;
+    let dur = status?.current?.track_duration || 0;
+    if (isYtPlaying() || isYtPaused()) dur = ytGetDuration();
     if (dur > 0) {
       const pos = (progressInput.value / 1000) * dur;
+      ytSeekTo(pos);
       apiPost(`/seek?position=${pos.toFixed(1)}`);
     }
   };
@@ -1241,10 +1358,12 @@ async function discoverPlayNow(encodedUrl, encodedTitle, el) {
   const overlay = el.querySelector('.discover-play-overlay');
   if (overlay) overlay.innerHTML = '<span class="spinner" style="width:20px;height:20px"></span>';
   toast('Streaming...');
+  const browserPlayed = ytPlayUrl(url, title);
   const r = await apiPost(`/discover/play?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`);
   if (overlay) overlay.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
   if (r?.ok) {
-    toast('Now playing: ' + (r.title || title || 'Unknown'));
+    _currentDiscoverUrl = url;
+    toast(browserPlayed ? 'Now playing: ' + (title || 'Unknown') : 'Now playing (server): ' + (r.title || title));
   } else {
     toast(r?.error || 'Failed to play', 'error');
   }
@@ -1255,6 +1374,7 @@ async function discoverAddToQueue(encodedUrl, encodedTitle, btn) {
   const title = (encodedTitle || '').replace(/&quot;/g, '"').replace(/\\'/g, "'");
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="width:14px;height:14px"></span>';
+  ytQueueUrl(url, title);
   const r = await apiPost(`/discover/queue?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`);
   if (r?.ok) {
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="var(--green)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
