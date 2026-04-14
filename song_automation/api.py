@@ -536,6 +536,13 @@ def create_app(controller: MusicController) -> FastAPI:
         """Return trending song suggestions per category from the discovery engine."""
         return controller._get_trending_suggestions()
 
+    @app.get("/discover/scan")
+    def force_scan_trending(_: None = Depends(auth_dependency)) -> dict:
+        """Force a fresh trending scan (blocking). Returns results when done."""
+        from song_automation.discovery import scan_trending
+        result = scan_trending()
+        return result
+
     @app.get("/discover/search")
     def search_discover(q: str, max_results: int = 20, _: None = Depends(auth_dependency)) -> dict:
         """Live search YouTube for songs by user query."""

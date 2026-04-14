@@ -57,7 +57,7 @@
           <span class="conn-dot" id="connDot"></span>
           <span class="conn-text" id="connText">Connecting...</span>
         </div>
-        <div id="cloudModeBadge" style="display:none;text-align:center;padding:4px 8px;margin:4px 12px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,0.05);border-radius:6px;letter-spacing:0.5px;">CLOUD MODE &mdash; no audio</div>
+        <div id="cloudModeBadge" style="display:none;text-align:center;padding:4px 8px;margin:4px 12px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,0.05);border-radius:6px;letter-spacing:0.5px;">CLOUD MODE &mdash; browser audio</div>
         <div class="kbd-hints">
           <span title="Play/Pause"><kbd>Space</kbd></span>
           <span title="Volume"><kbd>\u2191</kbd><kbd>\u2193</kbd></span>
@@ -267,6 +267,7 @@
       </div>
       <div class="transport-inner">
         <div class="t-left" onclick="toggleNowPlayingPanel()" style="cursor:pointer" title="Expand Now Playing">
+          <img id="tThumb" src="" alt="" style="display:none;width:40px;height:40px;border-radius:4px;object-fit:cover;margin-right:8px;flex-shrink:0;">
           <div class="t-wave" id="tWave"><span></span><span></span><span></span><span></span><span></span></div>
           <div class="t-info">
             <div class="t-name marquee-wrap"><span class="marquee-text" id="tName">--</span></div>
@@ -464,7 +465,7 @@
   <div class="toast-box" id="toasts"></div>
   <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
   <div class="sr-only" id="srLive" aria-live="polite" aria-atomic="true"></div>
-  <div id="ytPlayerWrap" style="position:fixed;bottom:-1px;left:-1px;width:1px;height:1px;overflow:hidden;pointer-events:none;opacity:0;z-index:-1;">
+  <div id="ytPlayerWrap" style="position:fixed;bottom:0;right:0;width:2px;height:2px;overflow:hidden;pointer-events:none;z-index:-1;">
     <div id="ytPlayer"></div>
   </div>
   <script src="https://www.youtube.com/iframe_api"></script>

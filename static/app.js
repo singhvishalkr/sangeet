@@ -33,38 +33,97 @@ let interpRaf = null;
 let ytPlayer = null;
 let ytReady = false;
 let ytQueue = [];
+let ytCurrentVideoId = '';
 let ytCurrentTitle = '';
 let ytDryRun = false;
+let _ytProgressRaf = null;
 
 function onYouTubeIframeAPIReady() {
   ytPlayer = new YT.Player('ytPlayer', {
-    height: '1', width: '1',
-    playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, rel: 0 },
+    height: '200', width: '200',
+    playerVars: {
+      autoplay: 0, controls: 0, disablekb: 1, fs: 0,
+      modestbranding: 1, rel: 0, playsinline: 1,
+      origin: location.origin,
+    },
     events: {
-      onReady: () => { ytReady = true; },
+      onReady: _onYtReady,
       onStateChange: onYtStateChange,
+      onError: _onYtError,
     },
   });
 }
 
-function onYtStateChange(e) {
-  if (e.data === YT.PlayerState.ENDED) {
-    if (ytQueue.length > 0) {
-      const next = ytQueue.shift();
-      ytPlayById(next.id, next.title);
-    }
+function _onYtReady() {
+  ytReady = true;
+  ytPlayer.setVolume(vol || 50);
+}
+
+function _onYtError(e) {
+  const codes = { 2: 'invalid ID', 5: 'HTML5 error', 100: 'not found', 101: 'embed blocked', 150: 'embed blocked' };
+  const msg = codes[e.data] || `error ${e.data}`;
+  toast(`YouTube: ${msg} — trying next`, 'error');
+  if (ytQueue.length > 0) {
+    const next = ytQueue.shift();
+    ytPlayById(next.id, next.title);
   }
 }
 
+function onYtStateChange(e) {
+  if (e.data === YT.PlayerState.PLAYING) {
+    playing = true;
+    paused = false;
+    updatePlayIcon();
+    _startYtProgressSync();
+  } else if (e.data === YT.PlayerState.PAUSED) {
+    paused = true;
+    updatePlayIcon();
+    _stopYtProgressSync();
+  } else if (e.data === YT.PlayerState.ENDED) {
+    _stopYtProgressSync();
+    if (ytQueue.length > 0) {
+      const next = ytQueue.shift();
+      ytPlayById(next.id, next.title);
+    } else {
+      playing = false;
+      paused = false;
+      updatePlayIcon();
+    }
+  } else if (e.data === YT.PlayerState.BUFFERING) {
+    playing = true;
+    paused = false;
+  }
+}
+
+function _startYtProgressSync() {
+  if (_ytProgressRaf) return;
+  function tick() {
+    if (!isYtPlaying() && !isYtPaused()) { _ytProgressRaf = null; return; }
+    const pos = ytGetPosition();
+    const dur = ytGetDuration();
+    updateProgressUI(pos, dur);
+    _ytProgressRaf = requestAnimationFrame(tick);
+  }
+  _ytProgressRaf = requestAnimationFrame(tick);
+}
+
+function _stopYtProgressSync() {
+  if (_ytProgressRaf) { cancelAnimationFrame(_ytProgressRaf); _ytProgressRaf = null; }
+}
+
 function extractYtVideoId(url) {
-  const m = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/);
+  if (!url) return null;
+  const m = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/) || url.match(/embed\/([^?&#]+)/);
   return m ? m[1] : null;
 }
 
 function ytPlayById(videoId, title) {
   if (!ytReady || !ytPlayer) return false;
+  ytCurrentVideoId = videoId;
   ytCurrentTitle = title || '';
   ytPlayer.loadVideoById(videoId);
+  ytPlayer.unMute();
+  ytPlayer.setVolume(vol || 50);
   return true;
 }
 
@@ -78,8 +137,8 @@ function ytQueueUrl(url, title) {
   const vid = extractYtVideoId(url);
   if (!vid) return false;
   if (!ytReady || !ytPlayer) return false;
-  if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING ||
-      ytPlayer.getPlayerState() === YT.PlayerState.BUFFERING) {
+  const st = ytPlayer.getPlayerState?.();
+  if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) {
     ytQueue.push({ id: vid, title: title || '' });
     return true;
   }
@@ -89,12 +148,19 @@ function ytQueueUrl(url, title) {
 function ytTogglePause() {
   if (!ytReady || !ytPlayer) return;
   const st = ytPlayer.getPlayerState();
-  if (st === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
-  else if (st === YT.PlayerState.PAUSED) ytPlayer.playVideo();
+  if (st === YT.PlayerState.PLAYING) {
+    ytPlayer.pauseVideo();
+  } else if (st === YT.PlayerState.PAUSED) {
+    ytPlayer.playVideo();
+  }
 }
 
 function ytSetVolume(v) {
-  if (ytReady && ytPlayer) ytPlayer.setVolume(Math.max(0, Math.min(100, v)));
+  if (!ytReady || !ytPlayer) return;
+  v = Math.max(0, Math.min(100, v));
+  ytPlayer.setVolume(v);
+  if (v > 0) ytPlayer.unMute();
+  else ytPlayer.mute();
 }
 
 function ytSeekTo(sec) {
@@ -102,28 +168,40 @@ function ytSeekTo(sec) {
 }
 
 function ytGetPosition() {
-  return (ytReady && ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0;
+  try { return (ytReady && ytPlayer) ? (ytPlayer.getCurrentTime() || 0) : 0; }
+  catch { return 0; }
 }
 
 function ytGetDuration() {
-  return (ytReady && ytPlayer && ytPlayer.getDuration) ? ytPlayer.getDuration() : 0;
+  try { return (ytReady && ytPlayer) ? (ytPlayer.getDuration() || 0) : 0; }
+  catch { return 0; }
 }
 
 function isYtPlaying() {
-  if (!ytReady || !ytPlayer) return false;
+  if (!ytReady || !ytPlayer || !ytPlayer.getPlayerState) return false;
   const st = ytPlayer.getPlayerState();
   return st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING;
 }
 
 function isYtPaused() {
-  if (!ytReady || !ytPlayer) return false;
+  if (!ytReady || !ytPlayer || !ytPlayer.getPlayerState) return false;
   return ytPlayer.getPlayerState() === YT.PlayerState.PAUSED;
+}
+
+function ytStop() {
+  if (ytReady && ytPlayer) { try { ytPlayer.stopVideo(); } catch {} }
+  ytQueue = [];
+  ytCurrentVideoId = '';
+  ytCurrentTitle = '';
+  _stopYtProgressSync();
 }
 
 const $ = id => document.getElementById(id);
 const hdr = () => AUTH ? { 'X-Auth-Token': AUTH } : {};
 const jhdr = () => ({ 'Content-Type': 'application/json', ...hdr() });
 const pretty = s => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const IST = 'Asia/Kolkata';
+const fmtIST = (d, opts = {}) => new Date(d).toLocaleString('en-IN', { timeZone: IST, ...opts });
 
 function fmtTime(sec) {
   if (!sec || sec < 0) return '--:--';
@@ -198,11 +276,11 @@ function render(d) {
 
   const playlistName = c.playlist_name || pretty(c.playlist_id || '');
   const trackTitle = c.track_title;
-  playing = !!c.playlist_id;
-  paused = !!c.is_paused;
+  playing = !!c.playlist_id || isYtPlaying() || isYtPaused();
+  paused = isYtPaused() || (!!c.is_paused && !isYtPlaying());
 
-  $('npName').textContent = playlistName || 'Nothing Playing';
-  $('npTrack').textContent = trackTitle || '';
+  $('npName').textContent = playlistName || (ytCurrentTitle ? 'Discover' : 'Nothing Playing');
+  $('npTrack').textContent = trackTitle || ytCurrentTitle || '';
   $('npSlot').textContent = dec.slot_name || pretty(dec.slot_id || '');
   $('npTags').innerHTML = (c.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
 
@@ -225,11 +303,25 @@ function render(d) {
 
   // Transport info
   const tName = $('tName');
-  const displayName = trackTitle || playlistName || '--';
+  const displayName = trackTitle || ytCurrentTitle || playlistName || '--';
   tName.textContent = displayName;
   updateMarquee(tName, displayName);
 
-  $('tSlot').textContent = dec.slot_name || pretty(dec.slot_id || '');
+  const tThumb = $('tThumb');
+  if (tThumb) {
+    const thumbVid = _currentDiscoverUrl ? extractYtVideoId(_currentDiscoverUrl) : ytCurrentVideoId;
+    if (thumbVid && (isYtPlaying() || isYtPaused() || c.playlist_id === '__discover__')) {
+      const src = `https://img.youtube.com/vi/${thumbVid}/default.jpg`;
+      if (tThumb.src !== src) tThumb.src = src;
+      tThumb.style.display = '';
+    } else {
+      tThumb.style.display = 'none';
+    }
+  }
+
+  const slotText = dec.slot_name || pretty(dec.slot_id || '');
+  const queueInfo = ytQueue.length > 0 ? ` · ${ytQueue.length} in queue` : '';
+  $('tSlot').textContent = slotText + queueInfo;
 
   let pos = c.track_position || 0;
   let dur = c.track_duration || 0;
@@ -248,7 +340,7 @@ function render(d) {
     updateProgressUI(pos, dur);
   }
 
-  const v = c.volume ?? 50;
+  const v = (isYtPlaying() || isYtPaused()) ? (ytPlayer?.getVolume?.() ?? vol) : (c.volume ?? 50);
   vol = v;
   syncVolumeUI(v);
   updatePlayIcon();
@@ -264,11 +356,6 @@ function render(d) {
     cloudBadge.style.display = d.dry_run ? '' : 'none';
   }
   ytDryRun = !!d.dry_run;
-
-  if (isYtPlaying() || isYtPaused()) {
-    playing = true;
-    paused = isYtPaused();
-  }
 
   const mode = d.room_mode || 'normal';
   $('modeLabel').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
@@ -350,12 +437,13 @@ function renderNpPanel(c, dec) {
   $('npPanelTags').innerHTML = (c.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
 
   const artEl = $('npPanelArt');
-  if (artEl && _currentDiscoverUrl) {
-    const vid = extractYtVideoId(_currentDiscoverUrl);
-    if (vid) {
-      artEl.innerHTML = `<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" alt="Album art" style="width:100%;max-width:320px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">`;
+  const vid = _currentDiscoverUrl ? extractYtVideoId(_currentDiscoverUrl) : (ytCurrentVideoId || null);
+  if (artEl && vid) {
+    const imgSrc = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+    if (!artEl.querySelector(`img[src="${imgSrc}"]`)) {
+      artEl.innerHTML = `<img src="${imgSrc}" alt="Album art" style="width:100%;max-width:320px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">`;
     }
-  } else if (artEl && !c.playlist_id) {
+  } else if (artEl && !c.playlist_id && !isYtPlaying() && !isYtPaused()) {
     artEl.innerHTML = '<svg viewBox="0 0 24 24" width="80" height="80" fill="currentColor" opacity="0.3"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
   }
 
@@ -493,7 +581,7 @@ async function loadTimeline() {
     return;
   }
   el.innerHTML = items.map(d => {
-    const t = new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const t = fmtIST(d.timestamp, { hour: '2-digit', minute: '2-digit' });
     const what = d.action === 'play' ? pretty(d.playlist_id) : 'Stopped';
     const why = humanizeReason(d.reason);
     const cands = (d.candidates || []).slice(0, 3).map(c => pretty(c.playlist_id)).join(', ');
@@ -708,7 +796,7 @@ function buildSessionsChart(lis) {
   const max = Math.max(...daily.map(d => d.count), 1);
   el.innerHTML = daily.map(d => {
     const pct = Math.round((d.count / max) * 100);
-    const dayLabel = new Date(d.date).toLocaleDateString([], { weekday: 'short' });
+    const dayLabel = fmtIST(d.date, { weekday: 'short' });
     return `<div class="bar-col">
       <div class="bar-value">${d.count}</div>
       <div class="bar-fill" style="height:${pct}%"></div>
@@ -776,6 +864,16 @@ async function clearOverride() {
 }
 
 async function skipTrack() {
+  if (isYtPlaying() || isYtPaused()) {
+    if (ytQueue.length > 0) {
+      const next = ytQueue.shift();
+      ytPlayById(next.id, next.title);
+      toast('Skipped to next');
+      return;
+    } else {
+      ytStop();
+    }
+  }
   await apiPost('/skip');
   toast('Skipped to next track');
 }
@@ -1137,7 +1235,8 @@ if (progressInput) {
   progressInput.addEventListener('mousedown', () => { seekDragging = true; });
   progressInput.addEventListener('touchstart', () => { seekDragging = true; });
   progressInput.addEventListener('input', () => {
-    const dur = status?.current?.track_duration || 0;
+    let dur = status?.current?.track_duration || 0;
+    if (isYtPlaying() || isYtPaused()) dur = ytGetDuration();
     if (dur > 0) {
       const pct = progressInput.value / 1000;
       $('progressBar').style.width = (pct * 100) + '%';
@@ -1273,7 +1372,12 @@ async function loadDiscover() {
   el.innerHTML = '<div class="empty"><span class="spinner"></span> Loading trending songs...</div>';
   const d = await api('/discover/trending');
   if (!d?.categories || !Object.keys(d.categories).length) {
-    el.innerHTML = `<div class="empty">No trending data yet. Install yt-dlp for auto-discovery.<br><code style="font-size:12px;color:var(--tx3)">pip install yt-dlp</code><br><br><button class="discover-scan-btn" onclick="scanTrending()">Scan Now</button></div>`;
+    if (d?.scanning) {
+      el.innerHTML = `<div class="empty"><span class="spinner"></span> First scan in progress... Refresh in a few seconds.<br><br><button class="discover-scan-btn" onclick="loadDiscover()">Refresh</button></div>`;
+      setTimeout(loadDiscover, 8000);
+    } else {
+      el.innerHTML = `<div class="empty">No trending data yet.<br><br><button class="discover-scan-btn" onclick="scanTrending()">Scan Now</button></div>`;
+    }
     return;
   }
   discoverData = d;
@@ -1305,7 +1409,7 @@ function renderDiscover() {
       <div class="discover-cat-header">
         <div>
           <div class="discover-cat-name">${cat.name}</div>
-          <div class="discover-cat-meta">${songs.length} songs${cat.last_updated ? ' \u00B7 Updated ' + new Date(cat.last_updated).toLocaleString() : ''}</div>
+          <div class="discover-cat-meta">${songs.length} songs${cat.last_updated ? ' \u00B7 Updated ' + fmtIST(cat.last_updated) : ''}</div>
         </div>
         <div class="discover-nav">
           <span class="discover-page-info">${page + 1} / ${totalPages}</span>
@@ -1322,7 +1426,7 @@ function renderDiscover() {
   }
   html += `<div style="text-align:center;margin-top:16px"><button class="discover-scan-btn" onclick="scanTrending()">Refresh Trending</button></div>`;
   if (d.last_scan) {
-    html += `<p style="text-align:center;font-size:11px;color:var(--tx3);margin-top:8px">Last scan: ${new Date(d.last_scan).toLocaleString()}</p>`;
+    html += `<p style="text-align:center;font-size:11px;color:var(--tx3);margin-top:8px">Last scan: ${fmtIST(d.last_scan)}</p>`;
   }
   el.innerHTML = html;
 }
@@ -1357,15 +1461,22 @@ async function discoverPlayNow(encodedUrl, encodedTitle, el) {
   const title = (encodedTitle || '').replace(/&quot;/g, '"').replace(/\\'/g, "'");
   const overlay = el.querySelector('.discover-play-overlay');
   if (overlay) overlay.innerHTML = '<span class="spinner" style="width:20px;height:20px"></span>';
-  toast('Streaming...');
+
+  _currentDiscoverUrl = url;
   const browserPlayed = ytPlayUrl(url, title);
-  const r = await apiPost(`/discover/play?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`);
-  if (overlay) overlay.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
-  if (r?.ok) {
-    _currentDiscoverUrl = url;
-    toast(browserPlayed ? 'Now playing: ' + (title || 'Unknown') : 'Now playing (server): ' + (r.title || title));
+
+  apiPost(`/discover/play?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`).catch(() => {});
+
+  if (overlay) {
+    setTimeout(() => {
+      if (overlay) overlay.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="#fff"><path d="M8 5v14l11-7z"/></svg>';
+    }, 1500);
+  }
+
+  if (browserPlayed) {
+    toast('Now playing: ' + (title || 'Unknown'));
   } else {
-    toast(r?.error || 'Failed to play', 'error');
+    toast('Loading: ' + (title || 'Unknown'));
   }
 }
 
@@ -1490,9 +1601,25 @@ async function scanTrending() {
   toast('Scanning for trending songs... This may take a minute.');
   const el = $('discoverContent');
   el.innerHTML = '<div class="empty"><span class="spinner"></span> Scanning YouTube for trending songs...</div>';
-  const d = await api('/discover/trending');
-  if (d) { discoverData = d; renderDiscover(); }
-  else { el.innerHTML = '<div class="empty">Scan failed. Try again later.</div>'; }
+  const d = await api('/discover/scan');
+  if (d?.categories && Object.keys(d.categories).length) {
+    discoverData = d;
+    for (const catId of Object.keys(d.categories)) {
+      if (!(catId in discoverPages)) discoverPages[catId] = 0;
+    }
+    renderDiscover();
+  } else {
+    const fallback = await api('/discover/trending');
+    if (fallback?.categories && Object.keys(fallback.categories).length) {
+      discoverData = fallback;
+      for (const catId of Object.keys(fallback.categories)) {
+        if (!(catId in discoverPages)) discoverPages[catId] = 0;
+      }
+      renderDiscover();
+    } else {
+      el.innerHTML = '<div class="empty">Scan in progress. Refresh in 30 seconds.</div>';
+    }
+  }
 }
 
 /* ─── SETTINGS DRAWER ─── */
